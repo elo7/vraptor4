@@ -56,7 +56,7 @@ public class DefaultParametersControl implements ParametersControl {
 	private final String originalPattern;
 	private final Converters converters;
 	private final Evaluator evaluator;
-	private EncodingHandler encodingHandler;
+	private final EncodingHandler encodingHandler;
 
 	public DefaultParametersControl(String originalPattern, Map<String, String> parameterPatterns, Converters converters, Evaluator evaluator, EncodingHandler encodingHandler) {
 		this.originalPattern = originalPattern;
@@ -120,7 +120,38 @@ public class DefaultParametersControl implements ParametersControl {
 			base = base.replace("{" + splittedPatterns[i] + "}", result == null ? "" : parameter);
 		}
 
-		return base.replaceAll("\\.\\*", "");
+		base = base.replaceAll("\\.\\*", "");
+		char separator = '?';
+
+		for (Parameter parameter : paramNames) {
+			String paramName = parameter.getName();
+			if (!uriParameter(paramName)) {
+				// TODO make work for non-primitive types
+				Object param = selectParam(paramName, paramNames, paramValues);
+				Object result = evaluator.get(param, paramName);
+				if (result != null) {
+					Class<?> type = result.getClass();
+					if (converters.existsTwoWayFor(type)) {
+						TwoWayConverter converter = converters.twoWayConverterFor(type);
+						result = converter.convert(result);
+					}
+				}
+
+				String paramValue = encodeParameter(result == null ? "" : result.toString());
+				base += separator + paramName + "=" + paramValue;
+				separator = '&';
+			}
+		}
+		return base;
+	}
+
+	private boolean uriParameter(String paramName) {
+		for (String param : parameters) {
+			if (param.matches("^" + paramName + ".*")) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private String encodeParameter(String parameter) {

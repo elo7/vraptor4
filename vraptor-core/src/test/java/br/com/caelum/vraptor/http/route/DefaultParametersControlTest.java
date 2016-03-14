@@ -129,7 +129,7 @@ public class DefaultParametersControlTest {
 	@Test
 	public void shouldTranslateAsteriskAsEmpty() throws Exception {
 		Method method = Controller.class.getDeclaredMethod("store", Client.class);
-		
+
 		String uri = getDefaultParameterControlForUrl("/clients/.*").fillUri(nameProvider.parametersFor(method), client(3L));
 		assertThat(uri, is(equalTo("/clients/")));
 	}
@@ -137,7 +137,7 @@ public class DefaultParametersControlTest {
 	@Test
 	public void shouldTranslatePatternArgs() throws Exception {
 		Method method = Controller.class.getDeclaredMethod("store", Client.class);
-		
+
 		String uri = getDefaultParameterControlForUrl("/clients/{client.id}").fillUri(nameProvider.parametersFor(method), client(3L));
 		assertThat(uri, is(equalTo("/clients/3")));
 	}
@@ -152,7 +152,7 @@ public class DefaultParametersControlTest {
 	@Test
 	public void shouldTranslatePatternArgsWithMultipleRegexes() throws Exception {
 		Method method = Controller.class.getDeclaredMethod("mregex", String.class, String.class, String.class);
-		
+
 		String uri = getDefaultParameterControlForUrl("/test/{hash1:[a-z0-9]{16}}{id}{hash2:[a-z0-9]{16}}/")
 				.fillUri(nameProvider.parametersFor(method), "0123456789abcdef", "1234", "fedcba9876543210");
 		assertThat(uri, is(equalTo("/test/0123456789abcdef1234fedcba9876543210/")));
@@ -161,7 +161,7 @@ public class DefaultParametersControlTest {
 	@Test
 	public void shouldTranslatePatternArgNullAsEmpty() throws Exception {
 		Method method = Controller.class.getDeclaredMethod("store", Client.class);
-		
+
 		String uri = getDefaultParameterControlForUrl("/clients/{client.id}")
 				.fillUri(nameProvider.parametersFor(method), client(null));
 		assertThat(uri, is(equalTo("/clients/")));
@@ -170,7 +170,7 @@ public class DefaultParametersControlTest {
 	@Test
 	public void shouldUseConverterIfItExists() throws Exception {
 		Method method = Controller.class.getDeclaredMethod("store", Client.class);
-		
+
 		when(converters.existsTwoWayFor(Client.class)).thenReturn(true);
 		when(converters.twoWayConverterFor(Client.class)).thenReturn(converter);
 		when(converter.convert(any(Client.class))).thenReturn("john");
@@ -328,12 +328,40 @@ public class DefaultParametersControlTest {
 		assertThat(uri, is(equalTo("/language/c%23/about")));
 	}
 
+	@Test
+	public void fillURLWithStringQueryParams() throws SecurityException, NoSuchMethodException {
+		when(encodingHandler.getEncoding()).thenReturn("UTF-8");
+		DefaultParametersControl control = getDefaultParameterControlForUrl("/clients/{id}");
+		Method method = Controller.class.getDeclaredMethod("mregex", String.class, String.class, String.class);
+
+		String filled = control.fillUri(nameProvider.parametersFor(method), "abc123", "15", "def456");
+
+		assertThat(filled, is("/clients/15?hash1=abc123&hash2=def456"));
+	}
+
+	@Test
+	public void fillURLWithSimpleQueryParams() throws SecurityException, NoSuchMethodException {
+		when(encodingHandler.getEncoding()).thenReturn("UTF-8");
+		DefaultParametersControl control = getDefaultParameterControlForUrl("/{category}/search");
+		Method method = Controller.class.getDeclaredMethod("search", String.class, String.class, int.class, Sorting.class);
+
+		String filled = control.fillUri(nameProvider.parametersFor(method), "chocolate", "white", 15, Sorting.DESC);
+
+		assertThat(filled, is("/chocolate/search?query=white&pageSize=15&sorting=DESC"));
+	}
+
+	enum Sorting {
+		ASC,
+		DESC;
+	}
+
 	public static class Controller {
 		void lang(String lang) {}
 		void show(Long id) {}
 		void store(Client client) {}
 		void pathToFile(String pathToFile) {}
 		void mregex(String hash1, String id, String hash2) {}
+		void search(String category, String query, int pageSize, Sorting sorting) {}
 	}
 
 }
